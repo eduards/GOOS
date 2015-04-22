@@ -14,7 +14,7 @@ import java.awt.event.WindowEvent;
  *
  * @author ed
  */
-public class Main implements AuctionEventListener {
+public class Main implements SniperListener {
 
   public static final String AUCTION_RESOURCE = "Auction";
   public static final String ITEM_ID_AS_LOGIN = "auction-%s";
@@ -74,15 +74,27 @@ public class Main implements AuctionEventListener {
       throws XMPPException {
     disconnectWhenUICloses(connection);
     final Chat chat = connection.getChatManager().createChat(
-        auctionId(itemId, connection),
-        new AuctionMessageTranslator(this));
+        auctionId(itemId, connection), null);
     this.notToBeGCd = chat;
+
+    Auction auction = new Auction() {
+      public void bid(int amount) {
+        try {
+          chat.sendMessage(String.format(BID_COMMAND_FORMAT, amount));
+        } catch (XMPPException e) {
+          e.printStackTrace();
+        }
+      }
+    };
+    chat.addMessageListener(
+        new AuctionMessageTranslator(new AuctionSniper(auction, this)));
+
     chat.sendMessage(JOIN_COMMAND_FORMAT);
   }
 
   private void startUserInterface() throws Exception {
     SwingUtilities.invokeAndWait(() ->
-      ui = new MainWindow());
+        ui = new MainWindow());
   }
 
   private void disconnectWhenUICloses(final XMPPConnection connection) {
@@ -95,14 +107,15 @@ public class Main implements AuctionEventListener {
   }
 
   @Override
-  public void auctionClosed() {
+  public void sniperLost() {
     SwingUtilities.invokeLater(() ->
         ui.showStatus(MainWindow.STATUS_LOST));
   }
 
   @Override
-  public void currentPrice(int price, int increment) {
-    // not implemented yet
+  public void sniperBidding() {
+    SwingUtilities.invokeLater(() ->
+        ui.showStatus(MainWindow.STATUS_BIDDING));
   }
 
 }
