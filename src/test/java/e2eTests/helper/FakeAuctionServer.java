@@ -1,12 +1,15 @@
-package End2EndTests;
+package e2eTests.helper;
 
+import auctionsniper.Main;
+import org.hamcrest.Matcher;
 import org.jivesoftware.smack.Chat;
 import org.jivesoftware.smack.ChatManagerListener;
 import org.jivesoftware.smack.XMPPConnection;
 import org.jivesoftware.smack.XMPPException;
-import org.jivesoftware.smack.packet.Message;
 
 import static java.lang.String.format;
+import static org.hamcrest.CoreMatchers.equalTo;
+import static org.hamcrest.MatcherAssert.assertThat;
 
 /**
  * A FakeAuctionServer is a substitute server that allows the test to check
@@ -51,18 +54,25 @@ public class FakeAuctionServer {
         });
   }
 
-  public String getItemId() {
-    return itemId;
-  }
-
   /**
-   * Check if any message has arrived
-   * TODO method checks for an empty message as a temporary replacement, since it is the only event type supported so far
+   * Check if JOIN message has arrived
    *
    * @throws InterruptedException if no message is received within 5 seconds
    */
-  public void hasReceivedJoinRequestFromSniper() throws InterruptedException {
-    messageListener.receivesAMessage();
+  public void hasReceivedJoinRequestFrom(String sniperId)
+      throws InterruptedException {
+    receivesAMessageMatching(sniperId, equalTo(Main.JOIN_COMMAND_FORMAT));
+  }
+
+  /**
+   * Check if BID message has arrived
+   *
+   * @throws InterruptedException if no message is received within 5 seconds
+   */
+  public void hasReceivedBid(int bid, String sniperId)
+      throws InterruptedException {
+    receivesAMessageMatching(sniperId,
+        equalTo(format(Main.BID_COMMAND_FORMAT, bid)));
   }
 
   /**
@@ -72,7 +82,18 @@ public class FakeAuctionServer {
    * @throws XMPPException
    */
   public void announceClosed() throws XMPPException {
-    currentChat.sendMessage(new Message());
+    currentChat.sendMessage("SOLVersion: 1.1; Event: CLOSE;");
+  }
+
+  /**
+   * Sends a price message through the chat
+   */
+  public void reportPrice(int price, int increment, String bidder)
+      throws XMPPException {
+    currentChat.sendMessage(
+        String.format("SOLVersion: 1.1; Event: PRICE; "
+                + "CurrentPrice: %d; Increment: %d; Bidder: %s;",
+            price, increment, bidder));
   }
 
   /**
@@ -80,6 +101,17 @@ public class FakeAuctionServer {
    */
   public void stop() {
     connection.disconnect();
+  }
+
+  public String getItemId() {
+    return itemId;
+  }
+
+  private void receivesAMessageMatching(String sniperId,
+                                        Matcher<? super String> messageMatcher)
+      throws InterruptedException {
+    messageListener.receivesAMessage(messageMatcher);
+    assertThat(currentChat.getParticipant(), equalTo(sniperId));
   }
 
 }

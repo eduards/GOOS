@@ -1,4 +1,4 @@
-package End2EndTests;
+package e2eTests.helper;
 
 import auctionsniper.ui.MainWindow;
 import com.objogate.wl.swing.AWTEventQueueProber;
