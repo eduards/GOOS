@@ -10,11 +10,11 @@ import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 
 /**
- * auctionsniper.Main class which contains the application entry point
+ * Main class which contains the application entry point
  *
  * @author ed
  */
-public class Main implements SniperListener {
+public class Main {
 
   public static final String AUCTION_RESOURCE = "Auction";
   public static final String ITEM_ID_AS_LOGIN = "auction-%s";
@@ -77,24 +77,16 @@ public class Main implements SniperListener {
         auctionId(itemId, connection), null);
     this.notToBeGCd = chat;
 
-    Auction auction = new Auction() {
-      public void bid(int amount) {
-        try {
-          chat.sendMessage(String.format(BID_COMMAND_FORMAT, amount));
-        } catch (XMPPException e) {
-          e.printStackTrace();
-        }
-      }
-    };
+    Auction auction = new XMPPAuction(chat);
     chat.addMessageListener(
-        new AuctionMessageTranslator(new AuctionSniper(auction, this)));
+        new AuctionMessageTranslator(
+            new AuctionSniper(auction, new SniperStateDisplayer())));
 
     chat.sendMessage(JOIN_COMMAND_FORMAT);
   }
 
   private void startUserInterface() throws Exception {
-    SwingUtilities.invokeAndWait(() ->
-        ui = new MainWindow());
+    SwingUtilities.invokeAndWait(() -> ui = new MainWindow());
   }
 
   private void disconnectWhenUICloses(final XMPPConnection connection) {
@@ -106,16 +98,23 @@ public class Main implements SniperListener {
     });
   }
 
-  @Override
-  public void sniperLost() {
-    SwingUtilities.invokeLater(() ->
-        ui.showStatus(MainWindow.STATUS_LOST));
-  }
+  public class SniperStateDisplayer implements SniperListener {
 
-  @Override
-  public void sniperBidding() {
-    SwingUtilities.invokeLater(() ->
-        ui.showStatus(MainWindow.STATUS_BIDDING));
+    public void sniperBidding() {
+      showStatus(MainWindow.STATUS_BIDDING);
+    }
+
+    public void sniperLost() {
+      showStatus(MainWindow.STATUS_LOST);
+    }
+
+    public void sniperWinning() {
+      showStatus(MainWindow.STATUS_WINNING);
+    }
+
+    private void showStatus(final String status) {
+      SwingUtilities.invokeLater(() -> ui.showStatus(status));
+    }
   }
 
 }

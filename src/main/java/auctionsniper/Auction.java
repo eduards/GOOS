@@ -7,4 +7,6 @@ public interface Auction {
 
   public void bid(int bidding);
 
+  public void join();
+
 }

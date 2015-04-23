@@ -5,6 +5,7 @@ import org.jivesoftware.smack.MessageListener;
 import org.jivesoftware.smack.packet.Message;
 
 import java.util.HashMap;
+import java.util.Map;
 
 /**
  * Responsible for the translation of auction events and notification
@@ -25,14 +26,14 @@ public class AuctionMessageTranslator implements MessageListener {
    * message listener
    */
   public void processMessage(Chat chat, Message message) {
-    HashMap<String, String> event = unpackEventFrom(message);
-    String type = event.get("Event");
-    switch (type) {
+    AuctionEvent event = AuctionEvent.from(message.getBody());
+    switch (event.type()) {
       case "CLOSE":
-        listener.auctionClosed(); break;
+        listener.auctionClosed();
+        break;
       case "PRICE":
-        listener.currentPrice(Integer.parseInt(event.get("CurrentPrice")),
-          Integer.parseInt(event.get("Increment"))); break;
+        listener.currentPrice(event.currentPrice(), event.increment());
+        break;
     }
   }
 
@@ -45,4 +46,44 @@ public class AuctionMessageTranslator implements MessageListener {
     return event;
   }
 
+  private static class AuctionEvent {
+    private final Map<String, String> fields = new HashMap<>();
+
+    static AuctionEvent from(String messageBody) {
+      AuctionEvent event = new AuctionEvent();
+      for (String field : fieldsIn(messageBody)) {
+        event.addField(field);
+      }
+      return event;
+    }
+
+    static String[] fieldsIn(String messageBody) {
+      return messageBody.split(";");
+    }
+
+    public String type() {
+      return get("Event");
+    }
+
+    public int currentPrice() {
+      return getInt("CurrentPrice");
+    }
+
+    public int increment() {
+      return getInt("Increment");
+    }
+
+    private int getInt(String fieldName) {
+      return Integer.parseInt(get(fieldName));
+    }
+
+    private String get(String fieldName) {
+      return fields.get(fieldName);
+    }
+
+    private void addField(String field) {
+      String[] pair = field.split(":");
+      fields.put(pair[0].trim(), pair[1].trim());
+    }
+  }
 }
